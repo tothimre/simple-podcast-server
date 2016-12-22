@@ -9,7 +9,7 @@ var id3 = require('id3js');
 var path = require('path');
 var id3Async = Promise.promisify(id3);
 var crypto = require('crypto');
-var naturalSort = require('./local_modules/naturalSort');
+var naturalSort = require('./lib/local_modules/naturalSort');
 var md5 = require('crypto-js/md5');
 var enc_hex = require('crypto-js/enc-hex');
 var moment = require("moment");
@@ -28,14 +28,14 @@ var PodcastServer = function () {
         "otherExtensions" : [],
         "coverArtFiles" : ["folder.png", "folder.jpg"],
         "useFilenameDates" : false,
-        "datePatterns": [], 
+        "datePatterns": [],
     };
     var options = {};
     Object.keys(defaults).forEach(function (property) {
         options[property] = config[property] || defaults[property];
     });
     var app = express();
-    var serverUrl = "http://" + options.serverName + ":" + options.port + "/"; 
+    var serverUrl = "http://" + options.serverName + ":" + options.port + "/";
     var isMediaFile = function (filename) {
         var mediaExtensions = options.videoExtensions.concat(options.audioExtensions, options.otherExtensions);
         return _.contains(mediaExtensions, path.extname(filename));
@@ -123,7 +123,7 @@ var PodcastServer = function () {
                 }
             }
         }
-        return originalTime;      
+        return originalTime;
     };
 
     var createFeedObject = function (fileSet) {
@@ -153,9 +153,9 @@ var PodcastServer = function () {
         return getFeedCoverArt(fileSet.folderName)
         .then(function(covers) {
             if (covers.length > 0) {
-                feedOptions.itunesImage = 
+                feedOptions.itunesImage =
                 feedOptions.image_url = serverUrl + ['media', feedTitle, covers[0]].map(encodeURIComponent).join('/');
-            }  
+            }
             var feed = new Podcast(feedOptions);
             fileSet.files.sort(function (a, b) {
                 return naturalSort(b.name, a.name);
@@ -226,7 +226,7 @@ var PodcastServer = function () {
             feed.hash = 'f' + generateHash(dir);
             return feed;
         })
-        .then(function renderIndexTemplate (feeds) { 
+        .then(function renderIndexTemplate (feeds) {
             titleSearch = _.where(feeds, {'title': path});
             if (titleSearch.length > 0) {
                 return titleSearch[0].title;
@@ -245,7 +245,7 @@ var PodcastServer = function () {
             })
             .then(getFiles)
             .then(createFeedObject)
-            .then(function renderVideoTemplate (feedObject) { 
+            .then(function renderVideoTemplate (feedObject) {
                 feedObject.feed.items = feedObject.feed.items.filter(function(item) {
                     return item.guid === req.params.id;
                 });
@@ -286,7 +286,9 @@ var PodcastServer = function () {
             });
     };
 
+    app.set('views', path.join(__dirname, '/assets/views/default'));
     app.set('view engine', 'jade');
+    // app.set('view', (path.join(__dirname, 'web/views')))
     app.use(compression());
     app.use('/media', express.static(path.join(__dirname, options.documentRoot), {
         setHeaders: function(res, path) {
@@ -295,13 +297,13 @@ var PodcastServer = function () {
             }
         }
     }));
-    app.use('/lib', express.static(path.join(__dirname, 'lib')));
-    app.use('/css', express.static(path.join(__dirname, 'css')));
-    app.use('/js', express.static(path.join(__dirname, 'js')));
+    app.use('/lib', express.static(path.join(__dirname, 'assets/lib')));
+    app.use('/css', express.static(path.join(__dirname, 'assets/css')));
+    app.use('/js', express.static(path.join(__dirname, 'assets/js')));
     app.use('/feeds/xml/:name', getFeedXml);
     app.use('/feeds/:name/video/:id', getVideoPage);
     app.use('/feeds/:name', getFeed);
-    app.use('/', getIndex);    
+    app.use('/', getIndex);
     app.listen(options.port);
     console.log ("Listening at " + serverUrl + " ...");
 }();
