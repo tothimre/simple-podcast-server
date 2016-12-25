@@ -46,7 +46,7 @@ var PodcastServer = function () {
              var config = rawConfigs[siteKey]
             //  alert("Key is " + k + ", value is" + target[k]);
              Object.keys(defaults).forEach(function (property) {
-                 siteConfig[property] = siteConfig[property] || defaults[property]
+                 config[property] = config[property] || defaults[property]
              });
         }
         siteConfig[siteKey] = config
@@ -67,8 +67,9 @@ var PodcastServer = function () {
 
 
     var isMediaFile = function (filename) {
-        var mediaExtensions = options.videoExtensions.concat(options.audioExtensions, options.otherExtensions);
-        return _.contains(mediaExtensions, path.extname(filename));
+        var mediaExtensions = options.videoExtensions.concat(options.audioExtensions, options.otherExtensions)
+        isMediafile =  _.contains(mediaExtensions, path.extname(filename))
+        return _.contains(mediaExtensions, path.extname(filename))
     };
     var getMediaType = function (filename) {
         if (_.contains(options.videoExtensions, path.extname(filename))) {
@@ -125,12 +126,17 @@ var PodcastServer = function () {
         });
     };
     var getFiles = function (folder) {
+
+        console.log("1234")        
+
         var fileSet = {
             "folderName": folder
         };
+        console.log("1234", folder)
         return fs.readdirAsync(folder)
             .filter(isMediaFile)
             .map(function(x) {
+                console.log("1234", folder, x)
                 return path.join(folder, x);
             })
             .map(getStats)
@@ -222,6 +228,7 @@ var PodcastServer = function () {
 
     var generateHash = function (s, len) {
         var length = len || 8;
+        console.log(s,len,"KKKKKKKKKKKKKKKK")
         return md5(s)
         .toString(enc_hex)
         .slice(0, length);
@@ -309,6 +316,8 @@ var PodcastServer = function () {
     //urlHandler
     var getFeed = function(req, res, next) {
 
+        console.log("FEED")
+
         var hostname = req.hostname
         var cnf = getConfig(req)
         setAppConfig(cnf)
@@ -323,7 +332,7 @@ var PodcastServer = function () {
                 res.render('feed', {"feed": feedObject.feed});
             })
             .catch(function(e) {
-                res.status(404).send('Couldn\'t find feed: ' + req.params.name);
+                res.status(404).send('Couldn\'t find feed (#051): ' + req.params.name);
             });
     };
 
