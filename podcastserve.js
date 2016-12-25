@@ -15,7 +15,7 @@ var enc_hex = require('crypto-js/enc-hex');
 var moment = require("moment");
 
 // load configFile
-var config = require('./config');
+var rawConfigs = require('./config');
 
 var PodcastServer = function () {
 
@@ -31,9 +31,27 @@ var PodcastServer = function () {
         "datePatterns": [],
     };
     var options = {};
-    Object.keys(defaults).forEach(function (property) {
-        options[property] = config[property] || defaults[property];
-    });
+
+    // Object.keys(defaults).forEach(function (property) {
+    //     options[property] = config[property] || defaults[property];
+    // });
+
+    var siteConfig = {}
+    for (var siteKey in rawConfigs){
+      console.log(siteKey);
+      var config = {}
+        if (typeof rawConfigs[siteKey] !== 'function') {
+             var config = rawConfigs[siteKey]
+            //  alert("Key is " + k + ", value is" + target[k]);
+             Object.keys(defaults).forEach(function (property) {
+                 siteConfig[property] = siteConfig[property] || defaults[property]
+             });
+        }
+        siteConfig[siteKey] = config
+    }
+
+    options = siteConfig['localhost']
+
     var app = express();
     var serverUrl = "http://" + options.serverName + ":" + options.port + "/";
     var isMediaFile = function (filename) {
