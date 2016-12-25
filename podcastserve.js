@@ -380,7 +380,7 @@ var PodcastServer = function () {
     app.use('/', getIndex);
     //todo fix it too
     // app.listen(options.port);
-    app.listen(3000);
+    app.listen(80);
     //todo fix
     console.log ("Listening at " + serverUrl + " ...");
 }();
