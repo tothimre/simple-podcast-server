@@ -19,6 +19,7 @@ var rawConfigs = require('./config');
 
 var PodcastServer = function () {
 
+
     var defaults = {
         "serverName" : "localhost",
         "port" : "3000",
@@ -30,6 +31,7 @@ var PodcastServer = function () {
         "useFilenameDates" : false,
         "datePatterns": [],
     };
+
     var options = {};
 
     // Object.keys(defaults).forEach(function (property) {
@@ -50,10 +52,20 @@ var PodcastServer = function () {
         siteConfig[siteKey] = config
     }
 
-    options = siteConfig['localhost']
+    // options = siteConfig['localhost']
+    options = {}
+
+    var getConfig = function functionName(req) {
+      var config = siteConfig[req.hostname]
+      return config
+    }
 
     var app = express();
-    var serverUrl = "http://" + options.serverName + ":" + options.port + "/";
+
+    // var serverUrl = "http://" + options.serverName + ":" + options.port + "/"
+    var serverUrl = ''
+
+
     var isMediaFile = function (filename) {
         var mediaExtensions = options.videoExtensions.concat(options.audioExtensions, options.otherExtensions);
         return _.contains(mediaExtensions, path.extname(filename));
@@ -199,6 +211,7 @@ var PodcastServer = function () {
                 feed.items[i].mediatype = getMediaType(fileName);
             }
             feed.hash = 'f' + generateHash(feedTitle);
+
             return {"name"  : feed.title,
                     "folder": path.join(options.documentRoot, feedTitle),
                     "feed"  : feed,
@@ -206,39 +219,49 @@ var PodcastServer = function () {
             };
         });
     };
+
     var generateHash = function (s, len) {
         var length = len || 8;
         return md5(s)
         .toString(enc_hex)
         .slice(0, length);
     };
+
+    //urlHandler
     var getIndex = function(req, res, next) {
-        console.log("Creating index");
-        getSubDirs(options.documentRoot)
-        .map(function (dir) {
-            var feed = {title: dir};
-            feed.hash = 'f' + generateHash(dir);
-            return feed;
-        })
-        .map(function (feed) {
-            var folder = path.join(options.documentRoot, feed.title);
-            feed.link = serverUrl + ['feeds', feed.hash].map(encodeURIComponent).join('/');
-            feed.feed_url = serverUrl + ['feeds', 'xml', feed.hash].map(encodeURIComponent).join('/');
-            return getFeedCoverArt(folder)
-                .then(function (covers) {
-                    if (covers.length > 0) {
-                        feed.image = serverUrl + ['media', feed.title, covers[0]].map(encodeURIComponent).join('/');
-                    }
-                    return feed;
-                });
-        })
-        .then(function renderIndexTemplate (feeds) {
-            res.render('index', {"feeds": feeds});
-        });
+
+      var hostname = req.hostname
+      var cnf = getConfig(req)
+      setAppConfig(cnf)
+
+      console.log("Creating index");
+
+      getSubDirs(cnf.documentRoot)
+      .map(function (dir) {
+          var feed = {title: dir};
+          feed.hash = 'f' + generateHash(dir);
+          return feed;
+      })
+      .map(function (feed) {
+          var folder = path.join(cnf.documentRoot, feed.title);
+          feed.link = serverUrl + ['feeds', feed.hash].map(encodeURIComponent).join('/');
+          feed.feed_url = serverUrl + ['feeds', 'xml', feed.hash].map(encodeURIComponent).join('/');
+          return getFeedCoverArt(folder)
+              .then(function (covers) {
+                  if (covers.length > 0) {
+                      feed.image = serverUrl + ['media', feed.title, covers[0]].map(encodeURIComponent).join('/');
+                  }
+                  return feed;
+              });
+      })
+      .then(function renderIndexTemplate (feeds) {
+          res.render('index', {"feeds": feeds});
+      });
     };
-    var getFeedPath = function (path) {
+
+    var getFeedPath = function (path, config) {
         var titleSearch, hashSearch;
-        return getSubDirs(options.documentRoot)
+        return getSubDirs(config.documentRoot)
         .map(function (dir) {
             var feed = {title: dir};
             feed.hash = 'f' + generateHash(dir);
@@ -256,10 +279,17 @@ var PodcastServer = function () {
             return '404';
         });
     };
+
+    //urlHandler
     var getVideoPage = function(req, res, next) {
-        getFeedPath(req.params.name)
+
+        var hostname = req.hostname
+        var cnf = getConfig(req)
+        setAppConfig(cnf)
+
+        getFeedPath(req.params.name, cnf)
             .then(function (name) {
-                return path.join(options.documentRoot, name);
+                return path.join(cnf.documentRoot, name);
             })
             .then(getFiles)
             .then(createFeedObject)
@@ -275,10 +305,17 @@ var PodcastServer = function () {
                 console.log(feedObject);
             });
     };
+
+    //urlHandler
     var getFeed = function(req, res, next) {
-        getFeedPath(req.params.name)
+
+        var hostname = req.hostname
+        var cnf = getConfig(req)
+        setAppConfig(cnf)
+
+        getFeedPath(req.params.name, cnf)
             .then(function (name) {
-                return path.join(options.documentRoot, name);
+                return path.join(cnf.documentRoot, name);
             })
             .then(getFiles)
             .then(createFeedObject)
@@ -289,10 +326,16 @@ var PodcastServer = function () {
                 res.status(404).send('Couldn\'t find feed: ' + req.params.name);
             });
     };
+
+    //urlHandler
     var getFeedXml = function(req, res, next) {
-        getFeedPath(req.params.name)
+        var hostname = req.hostname
+        var cnf = getConfig(req)
+        setAppConfig(cnf)
+
+        getFeedPath(req.params.name, cnf)
             .then(function (name) {
-                return path.join(options.documentRoot, name);
+                return path.join(cnf.documentRoot, name);
             })
             .then(getFiles)
             .then(createFeedObject)
@@ -304,17 +347,30 @@ var PodcastServer = function () {
             });
     };
 
+    app.use(compression());
+
+    var setAppConfig = function(config){
+      options = config
+      var serverUrl = "http://" + config.serverName + ":" + config.port + "/";
+      app.use('/media', express.static(path.join(__dirname, config.documentRoot), {
+          setHeaders: function(res, path) {
+              if (isMediaFile(res.req.url)) {
+                  res.attachment();
+              }
+          }
+      }));
+    }
+
     app.set('views', path.join(__dirname, '/assets/views/default'));
     app.set('view engine', 'jade');
     // app.set('view', (path.join(__dirname, 'web/views')))
-    app.use(compression());
-    app.use('/media', express.static(path.join(__dirname, options.documentRoot), {
-        setHeaders: function(res, path) {
-            if (isMediaFile(res.req.url)) {
-                res.attachment();
-            }
-        }
-    }));
+    // app.use('/media', express.static(path.join(__dirname, options.documentRoot), {
+    //     setHeaders: function(res, path) {
+    //         if (isMediaFile(res.req.url)) {
+    //             res.attachment();
+    //         }
+    //     }
+    // }));
     app.use('/lib', express.static(path.join(__dirname, 'assets/lib')));
     app.use('/css', express.static(path.join(__dirname, 'assets/css')));
     app.use('/js', express.static(path.join(__dirname, 'assets/js')));
@@ -322,6 +378,9 @@ var PodcastServer = function () {
     app.use('/feeds/:name/video/:id', getVideoPage);
     app.use('/feeds/:name', getFeed);
     app.use('/', getIndex);
-    app.listen(options.port);
+    //todo fix it too
+    // app.listen(options.port);
+    app.listen(3000);
+    //todo fix
     console.log ("Listening at " + serverUrl + " ...");
 }();
