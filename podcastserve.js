@@ -40,7 +40,6 @@ var PodcastServer = function () {
 
     var siteConfig = {}
     for (var siteKey in rawConfigs){
-      console.log(siteKey);
       var config = {}
         if (typeof rawConfigs[siteKey] !== 'function') {
              var config = rawConfigs[siteKey]
@@ -52,6 +51,7 @@ var PodcastServer = function () {
         siteConfig[siteKey] = config
     }
 
+console.log("AAAA",siteConfig,"BBB");
     // options = siteConfig['localhost']
     options = {}
 
@@ -66,10 +66,10 @@ var PodcastServer = function () {
     var serverUrl = ''
 
 
-    var isMediaFile = function (filename) {
-        var mediaExtensions = options.videoExtensions.concat(options.audioExtensions, options.otherExtensions)
-        isMediafile =  _.contains(mediaExtensions, path.extname(filename))
-        return _.contains(mediaExtensions, path.extname(filename))
+    var isMediaFile = function (filename, config) {
+      console.log("GGG", options);
+        var mediaExtensions = options.videoExtensions.concat(options.audioExtensions, options.otherExtensions);
+        return _.contains(mediaExtensions, path.extname(filename));
     };
     var getMediaType = function (filename) {
         if (_.contains(options.videoExtensions, path.extname(filename))) {
@@ -126,17 +126,12 @@ var PodcastServer = function () {
         });
     };
     var getFiles = function (folder) {
-
-        console.log("1234")        
-
         var fileSet = {
             "folderName": folder
         };
-        console.log("1234", folder)
         return fs.readdirAsync(folder)
             .filter(isMediaFile)
             .map(function(x) {
-                console.log("1234", folder, x)
                 return path.join(folder, x);
             })
             .map(getStats)
@@ -227,8 +222,8 @@ var PodcastServer = function () {
     };
 
     var generateHash = function (s, len) {
+        console.log("");;;
         var length = len || 8;
-        console.log(s,len,"KKKKKKKKKKKKKKKK")
         return md5(s)
         .toString(enc_hex)
         .slice(0, length);
@@ -267,14 +262,18 @@ var PodcastServer = function () {
     };
 
     var getFeedPath = function (path, config) {
+
         var titleSearch, hashSearch;
         return getSubDirs(config.documentRoot)
+
         .map(function (dir) {
             var feed = {title: dir};
             feed.hash = 'f' + generateHash(dir);
             return feed;
         })
+
         .then(function renderIndexTemplate (feeds) {
+
             titleSearch = _.where(feeds, {'title': path});
             if (titleSearch.length > 0) {
                 return titleSearch[0].title;
@@ -296,6 +295,7 @@ var PodcastServer = function () {
 
         getFeedPath(req.params.name, cnf)
             .then(function (name) {
+
                 return path.join(cnf.documentRoot, name);
             })
             .then(getFiles)
@@ -315,25 +315,32 @@ var PodcastServer = function () {
 
     //urlHandler
     var getFeed = function(req, res, next) {
-
-        console.log("FEED")
-
+        console.log("#001","getFeed");
         var hostname = req.hostname
         var cnf = getConfig(req)
+        
         setAppConfig(cnf)
 
         getFeedPath(req.params.name, cnf)
-            .then(function (name) {
-                return path.join(cnf.documentRoot, name);
-            })
-            .then(getFiles)
-            .then(createFeedObject)
-            .then(function renderFeedTemplate (feedObject) {
-                res.render('feed', {"feed": feedObject.feed});
-            })
-            .catch(function(e) {
-                res.status(404).send('Couldn\'t find feed (#051): ' + req.params.name);
-            });
+          .then(function (name) {
+            console.log(name,"FFFFFFFFFFFFF");
+            var feedpath = path.join(cnf.documentRoot, name);
+            console.log(name,feedpath,"FFFFFFFFFFFFF");
+            return feedpath;
+          })
+          // .then(function(a,b,c){
+          //   console.console.log(a,b,c);
+          //   return a;
+          // })
+          .then(getFiles)
+          .then(createFeedObject)
+          .then(function renderFeedTemplate (feedObject) {
+              res.render('feed', {"feed": feedObject.feed});
+          })
+          .catch(function(e) {
+            console.log("UUU");
+              res.status(404).send('Couldn\'t find feed: ' + req.params.name);
+          });
     };
 
     //urlHandler
@@ -361,6 +368,7 @@ var PodcastServer = function () {
     var setAppConfig = function(config){
       options = config
       var serverUrl = "http://" + config.serverName + ":" + config.port + "/";
+      console.log(serverUrl,"DDD",config.documentRoot.split('/'));
       app.use('/media', express.static(path.join(__dirname, config.documentRoot), {
           setHeaders: function(res, path) {
               if (isMediaFile(res.req.url)) {
@@ -389,7 +397,7 @@ var PodcastServer = function () {
     app.use('/', getIndex);
     //todo fix it too
     // app.listen(options.port);
-    app.listen(80);
+    app.listen(3000);
     //todo fix
     console.log ("Listening at " + serverUrl + " ...");
 }();
